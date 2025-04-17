@@ -1,12 +1,8 @@
 # ComfyUI MCP Server
 
-![GitHub License](https://img.shields.io/github/license/yourusername/comfyui-mcp-server)
 
 A full-featured implementation of the Model Context Protocol (MCP) for ComfyUI, enabling AI agents to generate and manipulate images using a standardized API.
 
-<p align="center">
-  <img src="https://i.imgur.com/placeholder-image.png" alt="ComfyUI MCP Server Banner" width="600"/>
-</p>
 
 ## 📋 Table of Contents
 
@@ -332,6 +328,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 </p>
 
 <p align="center">
-  <a href="https://github.com/yourusername/comfyui-mcp-server/issues">Report Bug</a> •
-  <a href="https://github.com/yourusername/comfyui-mcp-server/issues">Request Feature</a>
+  <a href="https://github.com/l2dnjsrud/comfyui-mcp-server/issues">Report Bug</a> •
+  <a href="https://github.com/l2dnjsrud/comfyui-mcp-server/issues">Request Feature</a>
 </p>
