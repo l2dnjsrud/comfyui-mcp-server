@@ -1,0 +1,13 @@
+{
+  "default_client": {
+    "api_key": "Pw-fDBEw2f0dweHFaS4fLp9luMN7eqPRboRAR9C8_ig",
+    "permissions": [
+      "*"
+    ],
+    "rate_limit": {
+      "rate": 5,
+      "per": 60,
+      "burst": 10
+    }
+  }
+}

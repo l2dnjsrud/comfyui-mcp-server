@@ -1,0 +1,14 @@
+{
+  "comfyui_url": "http://localhost:8188",
+  "comfyui_ws_url": "ws://localhost:8188/ws",
+  "mcp_server_host": "0.0.0.0",
+  "mcp_server_port": 9000,
+  "dashboard_host": "0.0.0.0",
+  "dashboard_port": 8080,
+  "enable_auth": false,
+  "auth_config_path": "auth_config.json",
+  "workflows_dir": "workflows",
+  "db_path": "data/mcp_server.db",
+  "queue_save_path": "data/queue_state.json",
+  "max_concurrent_jobs": 2
+}

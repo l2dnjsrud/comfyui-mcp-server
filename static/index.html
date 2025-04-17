@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI MCP Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.10.3/dist/cdn.min.js" defer></script>
+    <style>
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="dashboard()">
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">ComfyUI MCP Dashboard</h1>
+                <div class="flex items-center space-x-4">
+                    <button @click="refreshData" class="p-2 rounded hover:bg-blue-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Navigation Tabs -->
+        <nav class="bg-white shadow">
+            <div class="container mx-auto px-4">
+                <div class="flex space-x-8">
+                    <button @click="setActiveTab('generate')" :class="{'text-blue-600 border-b-2 border-blue-600': activeTab === 'generate', 'text-gray-600': activeTab !== 'generate'}" class="py-4 px-2 font-medium">Generate</button>
+                    <button @click="setActiveTab('gallery')" :class="{'text-blue-600 border-b-2 border-blue-600': activeTab === 'gallery', 'text-gray-600': activeTab !== 'gallery'}" class="py-4 px-2 font-medium">Gallery</button>
+                    <button @click="setActiveTab('jobs')" :class="{'text-blue-600 border-b-2 border-blue-600': activeTab === 'jobs', 'text-gray-600': activeTab !== 'jobs'}" class="py-4 px-2 font-medium">Jobs</button>
+                    <button @click="setActiveTab('workflows')" :class="{'text-blue-600 border-b-2 border-blue-600': activeTab === 'workflows', 'text-gray-600': activeTab !== 'workflows'}" class="py-4 px-2 font-medium">Workflows</button>
+                    <button @click="setActiveTab('settings')" :class="{'text-blue-600 border-b-2 border-blue-600': activeTab === 'settings', 'text-gray-600': activeTab !== 'settings'}" class="py-4 px-2 font-medium">Settings</button>
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto px-4 py-6">
+            <!-- Generate Tab -->
+            <div x-show="activeTab === 'generate'" class="tab-content" :class="{'active': activeTab === 'generate'}">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-xl font-semibold mb-4">Image Generation</h2>
+                    
+                    <!-- Generation Mode Selector -->
+                    <div class="mb-4">
+                        <label class="block text-gray-700 mb-2">Generation Mode</label>
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" x-model="generationMode" value="txt2img" class="form-radio">
+                                <span class="ml-2">Text to Image</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" x-model="generationMode" value="img2img" class="form-radio">
+                                <span class="ml-2">Image to Image</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" x-model="generationMode" value="inpaint" class="form-radio">
+                                <span class="ml-2">Inpainting</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Prompt Input -->
+                    <div class="mb-4">
+                        <label for="prompt" class="block text-gray-700 mb-2">Prompt</label>
+                        <textarea id="prompt" x-model="prompt" rows="3" class="w-full px-3 py-2 border rounded-lg"></textarea>
+                    </div>
+                    
+                    <!-- Negative Prompt Input -->
+                    <div class="mb-4">
+                        <label for="negative_prompt" class="block text-gray-700 mb-2">Negative Prompt</label>
+                        <textarea id="negative_prompt" x-model="negativePrompt" rows="2" class="w-full px-3 py-2 border rounded-lg"></textarea>
+                    </div>
+                    
+                    <!-- Image Upload for img2img and inpaint -->
+                    <div x-show="generationMode === 'img2img' || generationMode === 'inpaint'" class="mb-4">
+                        <label class="block text-gray-700 mb-2">Input Image</label>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <input type="file" @change="handleImageUpload($event, 'image')" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div x-show="imagePreview" class="w-24 h-24 relative">
+                                <img :src="imagePreview" class="w-24 h-24 object-cover rounded-lg">
+                                <button @click="clearImage('image')" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Mask Upload for inpaint -->
+                    <div x-show="generationMode === 'inpaint'" class="mb-4">
+                        <label class="block text-gray-700 mb-2">Mask</label>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex-1">
+                                <input type="file" @change="handleImageUpload($event, 'mask')" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div x-show="maskPreview" class="w-24 h-24 relative">
+                                <img :src="maskPreview" class="w-24 h-24 object-cover rounded-lg">
+                                <button @click="clearImage('mask')" class="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Settings -->
+                    <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="width" class="block text-gray-700 mb-2">Width</label>
+                            <input type="number" id="width" x-model="width" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label for="height" class="block text-gray-700 mb-2">Height</label>
+                            <input type="number" id="height" x-model="height" class="w-full px-3 py-2 border rounded-lg">
+                        </div>
+                    </div>
+                    
+                    <!-- Model Selection -->
+                    <div class="mb-4">
+                        <label for="model" class="block text-gray-700 mb-2">Model</label>
+                        <select id="model" x-model="selectedModel" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="">Select a model</option>
+                            <template x-for="model in models" :key="model">
+                                <option :value="model" x-text="model"></option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <!-- Workflow Selection -->
+                    <div class="mb-4">
+                        <label for="workflow" class="block text-gray-700 mb-2">Workflow</label>
+                        <select id="workflow" x-model="selectedWorkflow" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="">Default</option>
+                            <template x-for="(params, workflow) in workflows" :key="workflow">
+                                <option :value="workflow" x-text="workflow"></option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <!-- Advanced Settings Toggle -->
+                    <div class="mb-4">
+                        <button @click="showAdvanced = !showAdvanced" class="text-blue-600 hover:text-blue-800">
+                            <span x-text="showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Settings'"></span>
+                        </button>
+                    </div>
+                    
+                    <!-- Advanced Settings -->
+                    <div x-show="showAdvanced" class="mb-4 p-4 border rounded-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="seed" class="block text-gray-700 mb-2">Seed (-1 for random)</label>
+                                <input type="number" id="seed" x-model="seed" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label for="steps" class="block text-gray-700 mb-2">Steps</label>
+                                <input type="number" id="steps" x-model="steps" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label for="cfg" class="block text-gray-700 mb-2">CFG Scale</label>
+                                <input type="number" id="cfg" x-model="cfgScale" step="0.1" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div x-show="generationMode === 'img2img'">
+                                <label for="strength" class="block text-gray-700 mb-2">Strength</label>
+                                <input type="range" id="strength" x-model="strength" min="0" max="1" step="0.01" class="w-full">
+                                <div class="text-center" x-text="strength"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Generate Button -->
+                    <div class="flex justify-end">
+                        <button @click="generateImage" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center" :disabled="isGenerating">
+                            <span x-show="isGenerating" class="loader mr-3 border-2 border-t-2 rounded-full w-5 h-5"></span>
+                            <span x-text="isGenerating ? 'Generating...' : 'Generate'"></span>
+                        </button>
+                    </div>
+                    
+                    <!-- Generation Progress -->
+                    <div x-show="isGenerating && generationProgress" class="mt-4">
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div class="bg-blue-600 h-4 rounded-full" :style="`width: ${generationProgress}%`"></div>
+                        </div>
+                        <div class="text-center mt-2" x-text="`Progress: ${generationProgress}%`"></div>
+                    </div>
+                    
+                    <!-- Generated Image -->
+                    <div x-show="generatedImageUrl" class="mt-6">
+                        <h3 class="text-lg font-semibold mb-2">Result</h3>
+                        <div class="flex justify-center">
+                            <div class="relative">
+                                <img :src="generatedImageUrl" class="max-w-full rounded-lg shadow-lg">
+                                <div class="absolute bottom-0 right-0 p-2">
+                                    <a :href="generatedImageUrl" download class="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gallery Tab -->
+            <div x-show="activeTab === 'gallery'" class="tab-content" :class="{'active': activeTab === 'gallery'}">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">Image Gallery</h2>
+                        <div class="flex space-x-2">
+                            <button @click="loadGallery(galleryPage - 1)" :disabled="galleryPage <= 1" class="px-3 py-1 border rounded-lg" :class="{'opacity-50 cursor-not-allowed': galleryPage <= 1}">Previous</button>
+                            <span class="px-3 py-1" x-text="`Page ${galleryPage} of ${Math.ceil(galleryTotal/galleryLimit)}`"></span>
+                            <button @click="loadGallery(galleryPage + 1)" :disabled="galleryPage >= Math.ceil(galleryTotal/galleryLimit)" class="px-3 py-1 border rounded-lg" :class="{'opacity-50 cursor-not-allowed': galleryPage >= Math.ceil(galleryTotal/galleryLimit)}">Next</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Gallery Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <template x-for="image in galleryImages" :key="image.id">
+                            <div class="relative group">
+                                <img :src="image.image_url" class="w-full h-48 object-cover rounded-lg shadow-sm">
+                                <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3 rounded-lg">
+                                    <div class="text-white text-sm line-clamp-3" x-text="image.prompt"></div>
+                                    <div class="flex justify-between text-white text-xs">
+                                        <span x-text="`${image.width}x${image.height}`"></span>
+                                        <a :href="image.image_url" download class="bg-blue-600 text-white p-1 rounded hover:bg-blue-700">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div x-show="galleryImages.length === 0" class="text-center py-8">
+                        <p class="text-gray-500">No images found. Start generating some!</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Jobs Tab -->
+            <div x-show="activeTab === 'jobs'" class="tab-content" :class="{'active': activeTab === 'jobs'}">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-xl font-semibold mb-4">Recent Jobs</h2>
+                    
+                    <!-- Jobs Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prompt</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="job in jobs" :key="job.job_id">
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="job.job_id"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="job.mode"></td>
+                                        <td class="px-6 py-4 text-sm text-gray-900 truncate max-w-xs" x-text="job.prompt"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                                :class="{
+                                                    'bg-green-100 text-green-800': job.status === 'completed',
+                                                    'bg-yellow-100 text-yellow-800': job.status === 'processing' || job.status === 'pending',
+                                                    'bg-red-100 text-red-800': job.status === 'error'
+                                                }"
+                                                x-text="job.status"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="formatTimestamp(job.timestamp)"></td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <a x-show="job.image_url" :href="job.image_url" target="_blank" class="text-blue-600 hover:text-blue-900 mr-3">View</a>
+                                            <button @click="resubmitJob(job)" class="text-green-600 hover:text-green-900">Resubmit</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div x-show="jobs.length === 0" class="text-center py-8">
+                        <p class="text-gray-500">No jobs found.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Workflows Tab -->
+            <div x-show="activeTab === 'workflows'" class="tab-content" :class="{'active': activeTab === 'workflows'}">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">Workflows</h2>
+                        <button @click="showUploadWorkflow = true" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Upload Workflow</button>
+                    </div>
+                    
+                    <!-- Workflows Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parameters</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <template x-for="(params, workflow) in workflows" :key="workflow">
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="workflow"></td>
+                                        <td class="px-6 py-4 text-sm text-gray-900">
+                                            <span x-text="params.join(', ')"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button @click="selectWorkflowForGeneration(workflow)" class="text-blue-600 hover:text-blue-900">Use</button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div x-show="Object.keys(workflows).length === 0" class="text-center py-8">
+                        <p class="text-gray-500">No workflows found.</p>
+                    </div>
+                    
+                    <!-- Upload Workflow Modal -->
+                    <div x-show="showUploadWorkflow" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                        <div class="bg-white rounded-lg p-6 max-w-lg w-full">
+                            <h3 class="text-lg font-semibold mb-4">Upload Workflow</h3>
+                            
+                            <div class="mb-4">
+                                <label for="workflow_id" class="block text-gray-700 mb-2">Workflow ID</label>
+                                <input type="text" id="workflow_id" x-model="uploadWorkflowId" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="workflow_file" class="block text-gray-700 mb-2">Workflow File (JSON)</label>
+                                <input type="file" id="workflow_file" @change="handleWorkflowFileUpload" accept=".json" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3">
+                                <button @click="showUploadWorkflow = false" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+                                <button @click="uploadWorkflow" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" :disabled="!uploadWorkflowId || !uploadWorkflowData">Upload</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings Tab -->
+            <div x-show="activeTab === 'settings'" class="tab-content" :class="{'active': activeTab === 'settings'}">
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-xl font-semibold mb-4">Settings</h2>
+                    
+                    <!-- Server Status -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-2">Server Status</h3>
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full mr-2" :class="{'bg-green-500': serverConnected, 'bg-red-500': !serverConnected}"></div>
+                            <span x-text="serverConnected ? 'Connected' : 'Disconnected'"></span>
+                        </div>
+                        <div class="mt-2">
+                            <button @click="checkServerConnection" class="text-blue-600 hover:text-blue-800 text-sm">Check Connection</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Theme Settings -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-2">Theme</h3>
+                        <label class="inline-flex items-center">
+                            <input type="radio" x-model="theme" value="light" class="form-radio">
+                            <span class="ml-2">Light</span>
+                        </label>
+                        <label class="inline-flex items-center ml-6">
+                            <input type="radio" x-model="theme" value="dark" class="form-radio">
+                            <span class="ml-2">Dark (Coming Soon)</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Default Settings -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-2">Default Settings</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="default_width" class="block text-gray-700 mb-2">Default Width</label>
+                                <input type="number" id="default_width" x-model="defaultSettings.width" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label for="default_height" class="block text-gray-700 mb-2">Default Height</label>
+                                <input type="number" id="default_height" x-model="defaultSettings.height" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label for="default_steps" class="block text-gray-700 mb-2">Default Steps</label>
+                                <input type="number" id="default_steps" x-model="defaultSettings.steps" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label for="default_cfg" class="block text-gray-700 mb-2">Default CFG Scale</label>
+                                <input type="number" id="default_cfg" x-model="defaultSettings.cfgScale" step="0.1" class="w-full px-3 py-2 border rounded-lg">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button @click="saveDefaultSettings" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save Defaults</button>
+                        </div>
+                    </div>
+                    
+                    <!-- API Key (if enabled) -->
+                    <div class="mb-6" x-show="authEnabled">
+                        <h3 class="text-lg font-medium mb-2">API Key</h3>
+                        <div class="flex items-center">
+                            <input type="password" x-model="apiKey" class="flex-1 px-3 py-2 border rounded-lg" placeholder="Enter your API key">
+                            <button @click="saveApiKey" class="ml-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Save</button>
+                        </div>
+                    </div>
+                    
+                    <!-- About Section -->
+                    <div>
+                        <h3 class="text-lg font-medium mb-2">About</h3>
+                        <p class="text-gray-700">ComfyUI MCP Server Dashboard v1.0</p>
+                        <p class="text-gray-500 text-sm mt-1">A web interface for managing the ComfyUI MCP Server</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="bg-white shadow-inner px-4 py-3">
+            <div class="container mx-auto text-gray-600 text-sm flex justify-between items-center">
+                <div>
+                    ComfyUI MCP Server Dashboard &copy; 2025
+                </div>
+                <div x-show="websocketStatus !== ''" x-text="websocketStatus" :class="{
+                    'text-green-600': websocketStatus === 'Connected',
+                    'text-red-600': websocketStatus === 'Disconnected',
+                    'text-yellow-600': websocketStatus === 'Connecting...'
+                }"></div>
+            </div>
+        </footer>
+    </div>
+    
+    <script>
+        function dashboard() {
+            return {
+                activeTab: 'generate',
+                generationMode: 'txt2img',
+                prompt: '',
+                negativePrompt: '',
+                width: 512,
+                height: 512,
+                seed: -1,
+                steps: 20,
+                cfgScale: 7.0,
+                strength: 0.75,
+                imageData: null,
+                imagePreview: null,
+                maskData: null,
+                maskPreview: null,
+                selectedModel: '',
+                selectedWorkflow: '',
+                models: [],
+                workflows: {},
+                isGenerating: false,
+                generationProgress: 0,
+                generatedImageUrl: null,
+                jobs: [],
+                galleryImages: [],
+                galleryPage: 1,
+                galleryLimit: 20,
+                galleryTotal: 0,
+                showAdvanced: false,
+                showUploadWorkflow: false,
+                uploadWorkflowId: '',
+                uploadWorkflowData: null,
+                websocket: null,
+                websocketStatus: 'Disconnected',
+                serverConnected: false,
+                theme: 'light',
+                authEnabled: false,
+                apiKey: localStorage.getItem('apiKey') || '',
+                defaultSettings: {
+                    width: 512,
+                    height: 512,
+                    steps: 20,
+                    cfgScale: 7.0
+                },
+                
+                init() {
+                    // Load settings from localStorage
+                    this.loadSettings();
+                    
+                    // Connect to WebSocket for live updates
+                    this.connectWebSocket();
+                    
+                    // Load initial data
+                    this.refreshData();
+                    
+                    // Check server connection
+                    this.checkServerConnection();
+                },
+                
+                setActiveTab(tab) {
+                    this.activeTab = tab;
+                    
+                    // Load data specific to the tab
+                    if (tab === 'gallery') {
+                        this.loadGallery();
+                    } else if (tab === 'jobs') {
+                        this.loadJobs();
+                    } else if (tab === 'workflows') {
+                        this.loadWorkflows();
+                    }
+                },
+                
+                refreshData() {
+                    this.loadModels();
+                    this.loadWorkflows();
+                    this.loadJobs();
+                    
+                    if (this.activeTab === 'gallery') {
+                        this.loadGallery();
+                    }
+                },
+                
+                loadSettings() {
+                    // Load theme
+                    const savedTheme = localStorage.getItem('theme');
+                    if (savedTheme) {
+                        this.theme = savedTheme;
+                    }
+                    
+                    // Load default settings
+                    const savedDefaults = localStorage.getItem('defaultSettings');
+                    if (savedDefaults) {
+                        this.defaultSettings = JSON.parse(savedDefaults);
+                        
+                        // Apply defaults
+                        this.width = this.defaultSettings.width;
+                        this.height = this.defaultSettings.height;
+                        this.steps = this.defaultSettings.steps;
+                        this.cfgScale = this.defaultSettings.cfgScale;
+                    }
+                },
+                
+                saveDefaultSettings() {
+                    // Update default settings
+                    this.defaultSettings = {
+                        width: parseInt(this.width),
+                        height: parseInt(this.height),
+                        steps: parseInt(this.steps),
+                        cfgScale: parseFloat(this.cfgScale)
+                    };
+                    
+                    // Save to localStorage
+                    localStorage.setItem('defaultSettings', JSON.stringify(this.defaultSettings));
+                    
+                    alert('Default settings saved!');
+                },
+                
+                saveApiKey() {
+                    localStorage.setItem('apiKey', this.apiKey);
+                    alert('API key saved!');
+                },
+                
+                async loadModels() {
+                    try {
+                        const response = await fetch('/api/models');
+                        const data = await response.json();
+                        this.models = data.models || [];
+                    } catch (error) {
+                        console.error('Error loading models:', error);
+                    }
+                },
+                
+                async loadWorkflows() {
+                    try {
+                        const response = await fetch('/api/workflows');
+                        const data = await response.json();
+                        this.workflows = data.workflows || {};
+                    } catch (error) {
+                        console.error('Error loading workflows:', error);
+                    }
+                },
+                
+                async loadJobs() {
+                    try {
+                        const response = await fetch('/api/jobs');
+                        const data = await response.json();
+                        this.jobs = data.jobs || [];
+                    } catch (error) {
+                        console.error('Error loading jobs:', error);
+                    }
+                },
+                
+                async loadGallery(page = 1) {
+                    try {
+                        this.galleryPage = page;
+                        const response = await fetch(`/api/gallery?page=${page}&limit=${this.galleryLimit}`);
+                        const data = await response.json();
+                        this.galleryImages = data.images || [];
+                        this.galleryTotal = data.total || 0;
+                    } catch (error) {
+                        console.error('Error loading gallery:', error);
+                    }
+                },
+                
+                async generateImage() {
+                    if (this.isGenerating) return;
+                    
+                    try {
+                        this.isGenerating = true;
+                        this.generationProgress = 0;
+                        this.generatedImageUrl = null;
+                        
+                        // Prepare parameters
+                        const params = {
+                            mode: this.generationMode,
+                            prompt: this.prompt,
+                            negative_prompt: this.negativePrompt,
+                            width: parseInt(this.width),
+                            height: parseInt(this.height),
+                            seed: parseInt(this.seed),
+                            steps: parseInt(this.steps),
+                            cfg_scale: parseFloat(this.cfgScale)
+                        };
+                        
+                        // Add model if selected
+                        if (this.selectedModel) {
+                            params.model = this.selectedModel;
+                        }
+                        
+                        // Add workflow if selected
+                        if (this.selectedWorkflow) {
+                            params.workflow_id = this.selectedWorkflow;
+                        }
+                        
+                        // Add mode-specific parameters
+                        if (this.generationMode === 'img2img') {
+                            if (!this.imageData) {
+                                alert('Please upload an image for img2img');
+                                this.isGenerating = false;
+                                return;
+                            }
+                            params.image = this.imageData;
+                            params.strength = parseFloat(this.strength);
+                        } else if (this.generationMode === 'inpaint') {
+                            if (!this.imageData) {
+                                alert('Please upload an image for inpainting');
+                                this.isGenerating = false;
+                                return;
+                            }
+                            if (!this.maskData) {
+                                alert('Please upload a mask for inpainting');
+                                this.isGenerating = false;
+                                return;
+                            }
+                            params.image = this.imageData;
+                            params.mask = this.maskData;
+                        }
+                        
+                        // Prepare request headers
+                        const headers = {
+                            'Content-Type': 'application/json'
+                        };
+                        
+                        // Add API key if available
+                        if (this.apiKey) {
+                            headers['X-API-Key'] = this.apiKey;
+                        }
+                        
+                        // Send request
+                        const response = await fetch('/api/generate', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(params)
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.error) {
+                            alert('Error: ' + data.error);
+                            this.isGenerating = false;
+                            return;
+                        }
+                        
+                        // Update generated image URL
+                        this.generatedImageUrl = data.image_url;
+                        
+                        // Reset generation status
+                        this.isGenerating = false;
+                        
+                        // Refresh data
+                        this.loadJobs();
+                        
+                    } catch (error) {
+                        console.error('Error generating image:', error);
+                        alert('Error generating image: ' + error.message);
+                        this.isGenerating = false;
+                    }
+                },
+                
+                async uploadWorkflow() {
+                    if (!this.uploadWorkflowId || !this.uploadWorkflowData) {
+                        alert('Please provide a workflow ID and file');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/api/upload_workflow', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-API-Key': this.apiKey
+                            },
+                            body: JSON.stringify({
+                                workflow_id: this.uploadWorkflowId,
+                                workflow_data: this.uploadWorkflowData
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.error) {
+                            alert('Error: ' + data.error);
+                            return;
+                        }
+                        
+                        alert('Workflow uploaded successfully!');
+                        this.showUploadWorkflow = false;
+                        this.uploadWorkflowId = '';
+                        this.uploadWorkflowData = null;
+                        
+                        // Refresh workflows
+                        this.loadWorkflows();
+                        
+                    } catch (error) {
+                        console.error('Error uploading workflow:', error);
+                        alert('Error uploading workflow: ' + error.message);
+                    }
+                },
+                
+                handleImageUpload(event, type) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const base64 = e.target.result;
+                        if (type === 'image') {
+                            this.imageData = base64.split(',')[1]; // Remove data URL prefix
+                            this.imagePreview = base64;
+                        } else if (type === 'mask') {
+                            this.maskData = base64.split(',')[1]; // Remove data URL prefix
+                            this.maskPreview = base64;
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                },
+                
+                clearImage(type) {
+                    if (type === 'image') {
+                        this.imageData = null;
+                        this.imagePreview = null;
+                    } else if (type === 'mask') {
+                        this.maskData = null;
+                        this.maskPreview = null;
+                    }
+                },
+                
+                handleWorkflowFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            this.uploadWorkflowData = JSON.parse(e.target.result);
+                        } catch (error) {
+                            alert('Invalid JSON file');
+                            console.error('Error parsing workflow JSON:', error);
+                        }
+                    };
+                    reader.readAsText(file);
+                },
+                
+                selectWorkflowForGeneration(workflow) {
+                    this.selectedWorkflow = workflow;
+                    this.activeTab = 'generate';
+                },
+                
+                resubmitJob(job) {
+                    // Set up generation parameters from job
+                    this.generationMode = job.mode;
+                    this.prompt = job.prompt;
+                    this.width = job.width;
+                    this.height = job.height;
+                    this.selectedWorkflow = job.workflow_id;
+                    this.selectedModel = job.model;
+                    
+                    // Parse additional parameters
+                    if (job.parameters) {
+                        if (typeof job.parameters === 'string') {
+                            try {
+                                const params = JSON.parse(job.parameters);
+                                if (params.negative_prompt) this.negativePrompt = params.negative_prompt;
+                                if (params.seed) this.seed = params.seed;
+                                if (params.steps) this.steps = params.steps;
+                                if (params.cfg_scale) this.cfgScale = params.cfg_scale;
+                                if (params.strength) this.strength = params.strength;
+                            } catch (e) {
+                                console.error('Error parsing job parameters:', e);
+                            }
+                        } else {
+                            // Parameters already parsed
+                            if (job.parameters.negative_prompt) this.negativePrompt = job.parameters.negative_prompt;
+                            if (job.parameters.seed) this.seed = job.parameters.seed;
+                            if (job.parameters.steps) this.steps = job.parameters.steps;
+                            if (job.parameters.cfg_scale) this.cfgScale = job.parameters.cfg_scale;
+                            if (job.parameters.strength) this.strength = job.parameters.strength;
+                        }
+                    }
+                    
+                    // Switch to generate tab
+                    this.activeTab = 'generate';
+                },
+                
+                formatTimestamp(timestamp) {
+                    if (!timestamp) return '';
+                    const date = new Date(timestamp);
+                    return date.toLocaleString();
+                },
+                
+                async checkServerConnection() {
+                    try {
+                        const response = await fetch('/api/workflows');
+                        this.serverConnected = response.ok;
+                    } catch (error) {
+                        console.error('Server connection check failed:', error);
+                        this.serverConnected = false;
+                    }
+                },
+                
+                connectWebSocket() {
+                    // Close existing connection if any
+                    if (this.websocket) {
+                        this.websocket.close();
+                    }
+                    
+                    this.websocketStatus = 'Connecting...';
+                    
+                    // Create new WebSocket connection
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//${window.location.host}/ws`;
+                    
+                    this.websocket = new WebSocket(wsUrl);
+                    
+                    this.websocket.onopen = () => {
+                        this.websocketStatus = 'Connected';
+                        console.log('WebSocket connected');
+                    };
+                    
+                    this.websocket.onclose = () => {
+                        this.websocketStatus = 'Disconnected';
+                        console.log('WebSocket disconnected, attempting to reconnect in 5s...');
+                        
+                        // Attempt to reconnect after 5 seconds
+                        setTimeout(() => {
+                            this.connectWebSocket();
+                        }, 5000);
+                    };
+                    
+                    this.websocket.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        this.websocketStatus = 'Error';
+                    };
+                    
+                    this.websocket.onmessage = (event) => {
+                        try {
+                            const message = JSON.parse(event.data);
+                            
+                            if (message.type === 'progress') {
+                                // Update progress for the current generation
+                                if (this.isGenerating && message.data) {
+                                    this.generationProgress = message.data.progress || 0;
+                                    
+                                    // If completed, update generated image URL
+                                    if (message.data.status === 'completed' && message.data.image_url) {
+                                        this.generatedImageUrl = message.data.image_url;
+                                        this.isGenerating = false;
+                                    }
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error parsing WebSocket message:', error);
+                        }
+                    };
+                }
+            };
+        }
+    </script>
+</body>
+</html>
