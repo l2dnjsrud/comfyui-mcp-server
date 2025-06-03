@@ -25,6 +25,9 @@ class MCPClient:
         self.pending_requests = {}
         self.session_id = None
         self.manifest = None
+        # Callbacks for special responses
+        self._on_manifest_received = None
+        self._on_pong_received = None
     
     async def connect(self) -> bool:
         """
@@ -164,7 +167,20 @@ class MCPClient:
                         manifest = response.get("manifest")
                         self.manifest = manifest
                         print(f"Received manifest with {len(manifest.get('tools', []))} tools")
+                        if self._on_manifest_received:
+                            try:
+                                self._on_manifest_received(manifest)
+                            finally:
+                                self._on_manifest_received = None
                     
+                    # Handle ping responses
+                    elif message_type == "pong":
+                        if self._on_pong_received:
+                            try:
+                                self._on_pong_received(response)
+                            finally:
+                                self._on_pong_received = None
+
                     # Handle errors
                     elif message_type == "error":
                         print(f"Server error: {response.get('message')}")
